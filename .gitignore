@@ -1,0 +1,11 @@
+node_modules
+.vercel
+.next
+.env*
+!.env.example
+out
+*.log
+frontend/dist
+coverage
+__pycache__/
+.venv/
