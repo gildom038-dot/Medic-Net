@@ -1,5 +1,4 @@
 node_modules
-.next/
 .vercel
 **/.env
 **/.env.*
@@ -8,7 +7,6 @@ node_modules
 *.local
 !.env.example
 !.env.*.example
-out
 *.log
 frontend/dist
 coverage

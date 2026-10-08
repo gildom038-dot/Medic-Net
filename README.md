@@ -13,7 +13,7 @@ MEDCNET/
 ├── .env.example
 ├── frontend/.env.example
 ├── package.json              # npm Workspaces und Start-/Build-Befehle
-├── pnpm-lock.yaml            # reproduzierbare Installation im Vercel-Build
+├── package-lock.json         # reproduzierbare npm-Installation lokal und auf Vercel
 └── vercel.json
 ```
 
@@ -59,8 +59,9 @@ Ohne Datenbank kann auf der Anmeldeseite **„Isolierten Demo-Modus starten“**
 ## Production Build und Tests
 
 ```bash
-npm run build
+npm install
 npm test
+npm run build
 ```
 
 Der Build erstellt `frontend/dist`. Die API wird in Produktion von Vercel Functions ausgeführt; ein dauerhafter Express-Prozess ist dort nicht erforderlich.
@@ -118,12 +119,12 @@ git commit -m "MEDCNET Update"
 git push
 ```
 
-Vor dem Commit sicherstellen, dass keine `.env`-Datei oder Secrets hinzugefügt werden. `.gitignore` schließt Environment-Dateien aus und lässt nur die `.env.example`-Vorlagen zu. `pnpm-lock.yaml` ist versioniert und wird von Vercel mit `--frozen-lockfile` installiert. Lokal unterstützt das Root-Workspace zusätzlich `npm install`.
+Vor dem Commit sicherstellen, dass keine `.env`-Datei oder Secrets hinzugefügt werden. `.gitignore` schließt Environment-Dateien aus und lässt nur die `.env.example`-Vorlagen zu. `package-lock.json` ist versioniert und wird lokal sowie auf Vercel mit npm verwendet.
 
 ## Vercel Deployment
 
 1. GitHub-Repository in Vercel importieren; **Root Directory** ist das Repository-Verzeichnis.
-2. Build Command: `npm run build`; Install Command: `pnpm install --frozen-lockfile`; Output Directory: `frontend/dist` (bereits in [`vercel.json`](./vercel.json) definiert).
+2. Build Command: `npm run build`; Install Command: `npm ci`; Output Directory: `frontend/dist` (bereits in [`vercel.json`](./vercel.json) definiert).
 3. Die erforderlichen Server- und Build-Environment-Variablen für Production eintragen; für nutzbare Preview-Deployments dort separate passende OAuth-Redirects verwenden.
 4. `FRONTEND_URL` auf die kanonische HTTPS-Origin setzen, zum Beispiel `https://medcnet.example.com`.
 5. `DISCORD_REDIRECT_URI` auf `https://medcnet.example.com/api/auth/callback` setzen und genau diese URL im Discord Developer Portal registrieren.
