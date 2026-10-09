@@ -23,4 +23,5 @@ test("Vercel uses npm, the Vite output directory, and both API handlers", () => 
   for (const functionPath of Object.keys(vercel.functions)) {
     assert.equal(fs.existsSync(path.resolve(__dirname, "..", functionPath)), true, `${functionPath} must exist`);
   }
+  assert.equal(Object.hasOwn(vercel.functions, "api/[resource]/[...path].js"), false);
 });

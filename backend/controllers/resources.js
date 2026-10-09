@@ -55,6 +55,7 @@ async function list(req, res) {
 }
 
 async function create(req, res) {
+  if (req.params.resource === "users") return res.status(403).json({ error: "Benutzer müssen über die geschützte Admin-Benutzerverwaltung angelegt werden." });
   if (!validateResource(req, res, writeRoles)) return;
   const resource = req.params.resource;
   if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) return res.status(400).json({ error: "Ein JSON-Objekt ist erforderlich." });
@@ -80,6 +81,7 @@ async function create(req, res) {
 }
 
 async function update(req, res) {
+  if (req.params.resource === "users") return res.status(403).json({ error: "Benutzeränderungen müssen über die geschützte Admin-Benutzerverwaltung erfolgen." });
   if (!validateResource(req, res, writeRoles)) return;
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: "Ungültige ID." });
   if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) return res.status(400).json({ error: "Ein JSON-Objekt ist erforderlich." });
@@ -114,6 +116,7 @@ async function updatePatientCondition(vitals, actor) {
 }
 
 async function remove(req, res) {
+  if (req.params.resource === "users") return res.status(403).json({ error: "Benutzer müssen deaktiviert statt gelöscht werden." });
   if (!validateResource(req, res, writeRoles)) return;
   if (req.user.role !== "Admin") return res.status(403).json({ error: "Löschen ist Admins vorbehalten." });
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: "Ungültige ID." });

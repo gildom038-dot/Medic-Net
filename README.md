@@ -75,16 +75,16 @@ Die Root-Vorlage [`.env.example`](./.env.example) enthält ausschließlich Namen
 | `MONGODB_URI` | Ja für echte Daten | MongoDB-Atlas-Verbindungs-URI; ausschließlich serverseitig |
 | `MONGODB_DATABASE` | Ja für echte Daten | Datenbankname, z. B. `medcnet` |
 | `JWT_SECRET` | Ja für Anmeldung | Zufälliger, nicht erratbarer Wert, mindestens 32 Zeichen |
-| `FRONTEND_URL` | Ja für Discord OAuth | Kanonische Web-Origin ohne abschließenden Slash |
-| `DISCORD_CLIENT_ID` | Ja für Discord OAuth | Discord-Anwendungs-ID |
-| `DISCORD_CLIENT_SECRET` | Ja für Discord OAuth | Serverseitiges OAuth-Secret |
-| `DISCORD_REDIRECT_URI` | Ja für Discord OAuth | Exakte Callback-URL mit `/api/auth/callback` |
-| `DISCORD_GUILD_ID` | Ja für Discord OAuth | Server-ID für Mitgliedschafts- und Rollenprüfung |
-| `ADMIN_ROLE_ID` | Empfohlen | Discord-Rolle für Admin |
-| `MODERATOR_ROLE_ID` | Empfohlen | Discord-Rolle für Moderator |
-| `FIRE_ROLE_ID` | Optional | Discord-Rolle für Feuerwehr |
-| `POLICE_ROLE_ID` | Optional | Discord-Rolle für Rettungsdienst |
-| `MEMBER_ROLE_ID` | Optional | Discord-Rolle für zugelassene allgemeine Mitglieder |
+| `FRONTEND_URL` | Nein | Nur für den später reaktivierbaren Discord-OAuth-Code |
+| `DISCORD_CLIENT_ID` | Nein | Discord-OAuth ist vorübergehend deaktiviert |
+| `DISCORD_CLIENT_SECRET` | Nein | Discord-OAuth ist vorübergehend deaktiviert |
+| `DISCORD_REDIRECT_URI` | Nein | Discord-OAuth ist vorübergehend deaktiviert |
+| `DISCORD_GUILD_ID` | Nein | Discord-OAuth ist vorübergehend deaktiviert |
+| `ADMIN_ROLE_ID` | Nein | Discord-Rollen-Mapping ist beim Dienstnummer-Login inaktiv |
+| `MODERATOR_ROLE_ID` | Nein | Discord-Rollen-Mapping ist beim Dienstnummer-Login inaktiv |
+| `FIRE_ROLE_ID` | Nein | Discord-Rollen-Mapping ist beim Dienstnummer-Login inaktiv |
+| `POLICE_ROLE_ID` | Nein | Discord-Rollen-Mapping ist beim Dienstnummer-Login inaktiv |
+| `MEMBER_ROLE_ID` | Nein | Discord-Rollen-Mapping ist beim Dienstnummer-Login inaktiv |
 | `VITE_API_URL` | Nein | Frontend-Buildvariable; auf Vercel `/api`, dies ist auch der Standard |
 
 `JWT_SECRET` erzeugen:
@@ -95,6 +95,16 @@ node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'
 
 Keine Geheimnisse mit `VITE_`-Präfix versehen. `.env`, Bot-Tokens und MongoDB-URIs mit Zugangsdaten niemals committen.
 
+## Administrator-Ersteinrichtung
+
+Es gibt keinen öffentlichen Registrierungs- oder Bootstrap-Endpunkt. Richte die Backend-Umgebung lokal mit `MONGODB_URI`, `MONGODB_DATABASE` und einem sicheren `JWT_SECRET` ein. Das Bootstrap-Programm liest optional die nicht versionierte Root-Datei `.env`; alternativ können die Werte über eine sichere lokale Secret-Verwaltung in die Prozessumgebung gegeben werden.
+
+Führe im Codespace-Terminal `npm run bootstrap:admin` aus. Das Programm verlangt ein interaktives Terminal, fragt Dienstnummer und Anzeigename ab und liest das Passwort ohne Echo zweimal ein. Es erstellt den ersten aktiven `Admin` mit bcrypt-Hash und Einmal-Marker in einer MongoDB-Transaktion. Existiert bereits ein Admin oder der Marker, wird das Setup abgelehnt. Das Passwort steht weder in Kommandozeilenargumenten noch in Logs oder API-Antworten.
+
+Weitere Benutzer dürfen nur angemeldete Admins über `POST /api/admin/users` anlegen. Rollen/Aktivstatus laufen über `PATCH /api/admin/users/:id`, Passwort-Reset über `PATCH /api/admin/users/:id/password`. Passwörter werden dabei serverseitig gehasht. Generische Ressourcen-Endpunkte dürfen Benutzer nicht anlegen, löschen oder Passwortfelder ändern.
+
+Das Bootstrap benötigt eine MongoDB-Atlas-Deployment-Umgebung, die Transaktionen unterstützt. Es verwendet die Collection `auth_bootstrap` und legt keine Daten an, wenn ein Administrator bereits existiert.
+
 ## MongoDB Atlas konfigurieren
 
 1. In MongoDB Atlas einen Cluster und eine Datenbank mit dem Namen `medcnet` (oder einem eigenen Namen) anlegen.
@@ -104,12 +114,9 @@ Keine Geheimnisse mit `VITE_`-Präfix versehen. `.env`, Bot-Tokens und MongoDB-U
 
 Die API verwendet Mongoose-Modelle für Benutzer/Mitarbeiter, Rollen, Patienten und Patientenakten, Vitalzeichen, Einsätze und Teamdaten, Fahrzeuge, Betten, Funkkanäle und Nachrichten, Rechnungen/Preiskatalog, Aktivitätsprotokolle und Benachrichtigungen. Fehlende oder nicht erreichbare MongoDB erzeugt einen expliziten API-Fehler; Produktivdaten werden nicht durch Beispieldaten ersetzt.
 
-## Discord Developer Portal
+## Discord-OAuth (derzeit deaktiviert)
 
-1. OAuth2-Anwendung erstellen und Client-ID sowie Client-Secret sicher speichern.
-2. Als Redirect exakt `https://<deine-domain>/api/auth/callback` (lokal: `http://localhost:4000/api/auth/callback`) registrieren.
-3. Die OAuth-Scopes `identify` und `guilds.members.read` verwenden.
-4. `DISCORD_GUILD_ID` sowie die optionalen Discord-Rollen-IDs in der Umgebung setzen.
+Die bisherigen Controller, API-Dateien und Umgebungsvariablen bleiben für eine spätere Rückkehr erhalten. Die Endpunkte `/api/auth/discord` und `/api/auth/callback` antworten aktuell mit `410 Gone`; sie sind kein Loginweg und erfordern keine Discord-Umgebungsvariablen.
 
 ## GitHub Workflow
 
@@ -125,20 +132,18 @@ Vor dem Commit sicherstellen, dass keine `.env`-Datei oder Secrets hinzugefügt 
 
 1. GitHub-Repository in Vercel importieren; **Root Directory** ist das Repository-Verzeichnis.
 2. Build Command: `npm run build`; Install Command: `npm ci`; Output Directory: `frontend/dist` (bereits in [`vercel.json`](./vercel.json) definiert).
-3. Die erforderlichen Server- und Build-Environment-Variablen für Production eintragen; für nutzbare Preview-Deployments dort separate passende OAuth-Redirects verwenden.
-4. `FRONTEND_URL` auf die kanonische HTTPS-Origin setzen, zum Beispiel `https://medcnet.example.com`.
-5. `DISCORD_REDIRECT_URI` auf `https://medcnet.example.com/api/auth/callback` setzen und genau diese URL im Discord Developer Portal registrieren.
-6. `VITE_API_URL=/api` als Vercel Build Environment Variable setzen oder den Standardwert verwenden.
-7. Deploy starten. Bei jedem Push auf den verbundenen Git-Branch erstellt Vercel automatisch ein neues Deployment.
-8. Danach `/api/health`, Discord-Anmeldung und einen direkten Seitenaufruf wie `/dispatch` testen.
+3. Für den laufenden Betrieb `MONGODB_URI`, `MONGODB_DATABASE` und `JWT_SECRET` als serverseitige Environment Variables eintragen.
+4. Discord-OAuth- und Rollenvariablen sind für den Dienstnummer-Login nicht erforderlich.
+5. `VITE_API_URL=/api` ist optional; dies ist bereits der Standard.
+6. Deployment starten und `/api/health`, `/api/auth/login`, `/api/auth/session` sowie einen direkten React-Seitenaufruf testen.
 
 `api/index.js` bedient `/api`; `api/auth/*.js` ordnet die OAuth- und Session-Endpunkte explizit zu. `api/[...path].js` leitet weitere API-Pfade an denselben Express-Handler weiter. Die SPA-Rewrite-Regel schließt `/api` und alle `/api/...`-Pfade aus; direkte sowie unbekannte React-Routen werden auf die Vite-`index.html` zurückgeführt. Für API- und Frontend-Aufrufe wird dieselbe Vercel-Origin verwendet.
 
 ### Vercel Environment Variables
 
-**Serverseitig erforderlich:** `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET`, `FRONTEND_URL`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`, `DISCORD_GUILD_ID`.
+**Serverseitig erforderlich:** `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET`.
 
-**Rollen-Mapping:** `ADMIN_ROLE_ID`, `MODERATOR_ROLE_ID`, `FIRE_ROLE_ID`, `POLICE_ROLE_ID` und `MEMBER_ROLE_ID` entsprechend deiner Discord-Konfiguration.
+**Discord:** `FRONTEND_URL`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`, `DISCORD_GUILD_ID` und Rollen-IDs bleiben optional und werden derzeit nicht verwendet.
 
 **Frontend Build:** `VITE_API_URL=/api`. Keine anderen Geheimnisse als Vercel-Variablen mit `VITE_`-Präfix verfügbar machen.
 

@@ -31,10 +31,10 @@ async function authenticate(req, res, next) {
   try {
     const connected = await connectDatabase();
     if (!connected) return res.status(503).json({ error: "MongoDB Atlas ist nicht konfiguriert. Prüfe MONGODB_URI und MONGODB_DATABASE." });
-    req.user = claims;
-    const profile = await models.users.findById(req.user.sub).select("role banned").lean();
-    if (!profile || profile.banned) return res.status(403).json({ error: "Dieses Konto ist gesperrt oder nicht verfügbar." });
-    req.user.role = profile.role;
+    const profile = await models.users.findById(claims.sub).select("role banned active authVersion").lean();
+    if (!profile || profile.banned || profile.active === false) return res.status(403).json({ error: "Dieses Konto ist gesperrt oder nicht verfügbar." });
+    if ((claims.authVersion || 0) !== (profile.authVersion || 0)) return res.status(401).json({ error: "Sitzung wurde beendet. Bitte erneut anmelden." });
+    req.user = { ...claims, role: profile.role };
     next();
   } catch {
     return res.status(503).json({ error: "MongoDB Atlas ist derzeit nicht verfügbar." });

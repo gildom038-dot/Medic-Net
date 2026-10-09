@@ -2,6 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { models } = require("../models");
 const auth = require("../controllers/auth");
+const passwordAuth = require("../controllers/passwordAuth");
+const userAdmin = require("../controllers/userAdmin").createUserAdminController();
 const resources = require("../controllers/resources");
 const asyncRoute = require("../middleware/asyncRoute");
 const { authenticate, requireRole } = require("../middleware/auth");
@@ -39,8 +41,9 @@ router.get("/health", asyncRoute(async (_req, res) => {
   }
 }));
 router.get("/auth/session", asyncRoute(auth.session));
-router.get("/auth/discord", asyncRoute(auth.startDiscord));
-router.get("/auth/callback", asyncRoute(auth.finishDiscord));
+router.post("/auth/login", asyncRoute(passwordAuth.login));
+router.get("/auth/discord", auth.discordLoginDisabled);
+router.get("/auth/callback", auth.discordLoginDisabled);
 router.get("/auth/me", authenticate, auth.currentUser);
 router.post("/auth/logout", auth.logout);
 router.get("/profile", authenticate, asyncRoute(resources.getProfile));
@@ -62,7 +65,9 @@ router.get("/radio", authenticate, resource("radio_channels"), asyncRoute(resour
 router.get("/admin/logs", authenticate, requireRole("Moderator"), resource("activity_logs"), asyncRoute(resources.list));
 router.get("/logs", authenticate, requireRole("Moderator"), resource("activity_logs"), asyncRoute(resources.list));
 router.get("/admin/users", authenticate, requireRole("Moderator"), resource("users"), asyncRoute(resources.list));
-router.patch("/admin/users/:id", authenticate, requireRole("Moderator"), resource("users"), asyncRoute(resources.update));
+router.post("/admin/users", authenticate, requireRole("Admin"), asyncRoute(userAdmin.createUser));
+router.patch("/admin/users/:id", authenticate, requireRole("Admin"), asyncRoute(userAdmin.updateUser));
+router.patch("/admin/users/:id/password", authenticate, requireRole("Admin"), asyncRoute(userAdmin.resetPassword));
 router.get("/:resource", authenticate, asyncRoute(resources.list));
 router.post("/:resource", authenticate, asyncRoute(resources.create));
 router.put("/:resource/:id", authenticate, asyncRoute(resources.update));

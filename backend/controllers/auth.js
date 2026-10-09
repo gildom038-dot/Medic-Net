@@ -127,15 +127,19 @@ async function session(req, res) {
   }
   let profile;
   try {
-    profile = await models.users.findById(claims.sub).select("displayName role discordId banned").lean();
+    profile = await models.users.findById(claims.sub).select("displayName role serviceNumber discordId active banned authVersion").lean();
   } catch {
     return res.status(503).json({ error: "MongoDB Atlas ist derzeit nicht verfügbar." });
   }
-  if (!profile || profile.banned) {
+  if (!profile || profile.active === false || profile.banned || (claims.authVersion || 0) !== (profile.authVersion || 0)) {
     res.clearCookie("medcnet_session", { path: "/" });
     return res.json({ user: null });
   }
-  res.json({ user: { sub: String(profile._id), name: profile.displayName, role: profile.role, discordId: profile.discordId } });
+  res.json({ user: { sub: String(profile._id), name: profile.displayName, role: profile.role, serviceNumber: profile.serviceNumber } });
+}
+
+function discordLoginDisabled(_req, res) {
+  return res.status(410).json({ error: "Discord-Anmeldung ist vorübergehend deaktiviert." });
 }
 
 function logout(req, res) {
@@ -143,4 +147,4 @@ function logout(req, res) {
   res.status(204).end();
 }
 
-module.exports = { startDiscord, finishDiscord, currentUser, session, logout, validDiscordRedirectUri };
+module.exports = { startDiscord, finishDiscord, discordLoginDisabled, currentUser, session, logout, validDiscordRedirectUri };

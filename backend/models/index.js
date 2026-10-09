@@ -1,7 +1,9 @@
 const mongoose = require("mongoose");
 
 const schemas = {
-  users: { displayName: String, discordId: { type: String, unique: true, sparse: true }, serviceNumber: String, role: { type: String, enum: ["Admin", "Moderator", "Rettungsdienst", "Krankenhaus", "Feuerwehr", "Benutzer"], default: "Benutzer" }, department: String, dutyStatus: { type: String, enum: ["Dienst", "Pause", "Außer Dienst"], default: "Außer Dienst" }, lastActivity: Date, banned: { type: Boolean, default: false } },
+  users: { displayName: String, discordId: { type: String, unique: true, sparse: true }, serviceNumber: { type: String, trim: true, unique: true, sparse: true }, passwordHash: { type: String, select: false }, authVersion: { type: Number, default: 0 }, active: { type: Boolean, default: true }, role: { type: String, enum: ["Admin", "Moderator", "Rettungsdienst", "Krankenhaus", "Feuerwehr", "Benutzer"], default: "Benutzer" }, department: String, dutyStatus: { type: String, enum: ["Dienst", "Pause", "Außer Dienst"], default: "Außer Dienst" }, lastActivity: Date, banned: { type: Boolean, default: false } },
+  login_attempts: { _id: String, attempts: { type: Number, default: 0 }, expiresAt: { type: Date, required: true } },
+  auth_bootstrap: { _id: String, createdAt: { type: Date, default: Date.now } },
   roles: { name: { type: String, required: true, unique: true }, description: String, discordRoleId: String, permissions: [String] },
   patients: { name: { type: String, required: true }, age: { type: Number, min: 0, max: 130 }, status: { type: String, enum: ["Aufgenommen", "Beobachtung", "Kritisch", "Entlassen"], default: "Aufgenommen" }, diagnosis: String, allergies: [String], bloodType: String, room: String, bed: String, admittedAt: Date, dischargedAt: Date, notes: String },
   patient_records: { patientId: { type: mongoose.Schema.Types.ObjectId, required: true }, title: { type: String, required: true }, diagnosis: String, notes: String, author: String, recordedAt: { type: Date, default: Date.now } },
@@ -17,9 +19,10 @@ const schemas = {
   notifications: { title: { type: String, required: true }, message: { type: String, required: true }, type: { type: String, enum: ["Info", "Warnung", "Kritisch"], default: "Info" }, read: { type: Boolean, default: false }, recipientRole: String }
 };
 
-const models = Object.fromEntries(Object.entries(schemas).map(([name, definition]) => [
-  name,
-  mongoose.models[name] || mongoose.model(name, new mongoose.Schema(definition, { collection: name, timestamps: true, strict: true }))
-]));
+const models = Object.fromEntries(Object.entries(schemas).map(([name, definition]) => {
+  const schema = new mongoose.Schema(definition, { collection: name, timestamps: true, strict: true });
+  if (name === "login_attempts") schema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  return [name, mongoose.models[name] || mongoose.model(name, schema)];
+}));
 
 module.exports = { models };
