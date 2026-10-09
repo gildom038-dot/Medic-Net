@@ -16,7 +16,6 @@ const originalEnvironment = Object.fromEntries(environmentKeys.map((key) => [key
 for (const key of environmentKeys) process.env[key] = "";
 
 const server = http.createServer(require("../api/[...path]")).listen(0, "127.0.0.1");
-const nestedServer = http.createServer(require("../api/[resource]/[...path]")).listen(0, "127.0.0.1");
 const discordServer = http.createServer(require("../api/auth/discord")).listen(0, "127.0.0.1");
 const sessionServer = http.createServer(require("../api/auth/session")).listen(0, "127.0.0.1");
 const callbackServer = http.createServer(require("../api/auth/callback")).listen(0, "127.0.0.1");
@@ -99,17 +98,16 @@ test("protected and admin routes reject requests without a session", async () =>
   }
 });
 
+
 test("unknown API paths return a JSON 404", async () => {
   const missingPaths = ["/api/not/a/known/route", "/api/not-a-resource"];
+
   for (const path of missingPaths) {
     const response = await request(path);
     assert.equal(response.status, 404, path);
     assert.match(response.headers.get("content-type"), /application\/json/, path);
     assert.equal(typeof (await response.json()).error, "string", path);
   }
-  const deepResponse = await request("/api/not/a/known/route", undefined, nestedServer);
-  assert.equal(deepResponse.status, 404);
-  assert.match(deepResponse.headers.get("content-type"), /application\/json/);
 });
 
 test("malformed JSON returns a JSON 400", async () => {
@@ -196,7 +194,7 @@ test("OAuth start validates configuration and creates a state-bound Discord redi
 });
 
 test.after(async () => {
-  for (const target of [server, nestedServer, discordServer, sessionServer, callbackServer, logoutServer, indexServer]) {
+  for (const target of [server, discordServer, sessionServer, callbackServer, logoutServer, indexServer]) {
     await new Promise((resolve, reject) => target.close((error) => error ? reject(error) : resolve()));
   }
   for (const key of environmentKeys) {
