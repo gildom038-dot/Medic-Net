@@ -5,7 +5,7 @@ const auth = require("../controllers/auth");
 const resources = require("../controllers/resources");
 const asyncRoute = require("../middleware/asyncRoute");
 const { authenticate, requireRole } = require("../middleware/auth");
-const { connectDatabase } = require("../config/database");
+const { connectDatabase, missingDatabaseConfiguration, databaseFailureReason } = require("../config/database");
 
 const router = express.Router();
 const resource = (name) => (req, _res, next) => {
@@ -20,11 +20,22 @@ router.param("resource", (req, res, next, name) => {
 router.get("/health", asyncRoute(async (_req, res) => {
   try {
     const connected = await connectDatabase();
-    if (!connected) return res.status(503).json({ status: "degraded", service: "medcnet-api", databaseConnected: false });
+    if (!connected) {
+      const missingConfiguration = missingDatabaseConfiguration();
+      console.warn(`MongoDB health check degraded: missing ${missingConfiguration.join(", ")}.`);
+      return res.status(503).json({
+        status: "degraded",
+        service: "medcnet-api",
+        databaseConnected: false,
+        reason: "missing_configuration",
+        missingConfiguration
+      });
+    }
     return res.json({ status: "ok", service: "medcnet-api", databaseConnected: mongoose.connection.readyState === 1 });
   } catch (error) {
-    console.error("Health check database connection failed:", error.name || "Error");
-    return res.status(503).json({ status: "degraded", service: "medcnet-api", databaseConnected: false });
+    const reason = databaseFailureReason(error);
+    console.error(`MongoDB health check failed: ${reason}.`);
+    return res.status(503).json({ status: "degraded", service: "medcnet-api", databaseConnected: false, reason });
   }
 }));
 router.get("/auth/session", asyncRoute(auth.session));

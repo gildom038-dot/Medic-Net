@@ -12,19 +12,46 @@ function frontendUrl() {
   return (process.env.FRONTEND_URL || "").replace(/\/$/, "");
 }
 
+function validDiscordRedirectUri() {
+  try {
+    const redirect = new URL(process.env.DISCORD_REDIRECT_URI);
+    const frontend = new URL(frontendUrl());
+    const localHttp = process.env.NODE_ENV !== "production"
+      && redirect.protocol === "http:"
+      && ["localhost", "127.0.0.1"].includes(redirect.hostname);
+    return redirect.pathname === "/api/auth/callback"
+      && redirect.origin === frontend.origin
+      && (redirect.protocol === "https:" || localHttp)
+      && !redirect.search
+      && !redirect.hash;
+  } catch {
+    return false;
+  }
+}
+
+function authStartFailure(req, res, code, message) {
+  if ((req.get("accept") || "").toLowerCase().includes("application/json")) {
+    return res.status(503).json({ error: message });
+  }
+  return res.redirect(`${frontendUrl()}/?authError=${code}`);
+}
+
 function signSession(user) {
   return jwt.sign({ sub: String(user._id), name: user.displayName, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: "8h" });
 }
 
 async function startDiscord(req, res) {
   if (!process.env.MONGODB_URI || !process.env.MONGODB_DATABASE) {
-    return res.redirect(`${frontendUrl()}/?authError=databaseConfig`);
+    return authStartFailure(req, res, "databaseConfig", "MongoDB Atlas ist nicht konfiguriert. Prüfe MONGODB_URI und MONGODB_DATABASE.");
   }
   if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET || !process.env.DISCORD_REDIRECT_URI || !process.env.DISCORD_GUILD_ID || !frontendUrl()) {
-    return res.redirect(`${frontendUrl()}/?authError=oauthConfig`);
+    return authStartFailure(req, res, "oauthConfig", "Discord OAuth ist unvollständig konfiguriert. Prüfe DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI, DISCORD_GUILD_ID und FRONTEND_URL.");
+  }
+  if (!validDiscordRedirectUri()) {
+    return authStartFailure(req, res, "oauthConfig", "DISCORD_REDIRECT_URI muss HTTPS verwenden und exakt auf /api/auth/callback derselben FRONTEND_URL zeigen.");
   }
   try { getJwtSecret(); }
-  catch { return res.redirect(`${frontendUrl()}/?authError=sessionConfig`); }
+  catch { return authStartFailure(req, res, "sessionConfig", "JWT_SECRET fehlt, ist zu kurz oder ungültig."); }
   const state = makeState();
   res.cookie("medcnet_oauth_state", state, { ...cookieOptions(req), maxAge: 10 * 60 * 1000 });
   const scope = encodeURIComponent("identify guilds.members.read");
@@ -116,4 +143,4 @@ function logout(req, res) {
   res.status(204).end();
 }
 
-module.exports = { startDiscord, finishDiscord, currentUser, session, logout };
+module.exports = { startDiscord, finishDiscord, currentUser, session, logout, validDiscordRedirectUri };

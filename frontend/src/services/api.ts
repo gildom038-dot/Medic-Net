@@ -2,7 +2,16 @@ import type { DashboardStats, RecordItem, Resource, User } from "../types";
 
 const baseUrl = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
+function isDemoSession(): boolean {
+  try {
+    return sessionStorage.getItem("medcnet-demo-session-v1") === "true";
+  } catch {
+    return false;
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  if (isDemoSession()) throw new Error("API-Aufrufe sind im isolierten Demo-Modus deaktiviert.");
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     credentials: "include",
@@ -12,6 +21,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("json")) {
+    if (response.status === 404) {
+      throw new Error("API-Route nicht gefunden (404). Prüfe die Vercel-API-Routen und das aktuelle Deployment.");
+    }
     if (response.ok) {
       throw new Error("Die API hat HTML statt JSON geliefert. Prüfe das Vercel-API-Routing und die Bereitstellung.");
     }

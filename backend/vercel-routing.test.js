@@ -20,4 +20,8 @@ test("Vercel uses npm, the Vite output directory, and both API handlers", () => 
   assert.equal(vercel.outputDirectory, "frontend/dist");
   assert.ok(vercel.functions["api/index.js"]);
   assert.ok(vercel.functions["api/[...path].js"]);
+  assert.ok(vercel.functions["api/[resource]/[...path].js"]);
+  for (const route of ["session", "discord", "callback", "me", "logout"]) {
+    assert.ok(vercel.functions[`api/auth/${route}.js`]);
+  }
 });

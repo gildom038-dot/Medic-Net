@@ -10,6 +10,24 @@
     },
     "api/[...path].js": {
       "maxDuration": 30
+    },
+    "api/[resource]/[...path].js": {
+      "maxDuration": 30
+    },
+    "api/auth/session.js": {
+      "maxDuration": 30
+    },
+    "api/auth/discord.js": {
+      "maxDuration": 30
+    },
+    "api/auth/callback.js": {
+      "maxDuration": 30
+    },
+    "api/auth/me.js": {
+      "maxDuration": 30
+    },
+    "api/auth/logout.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
