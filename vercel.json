@@ -14,6 +14,9 @@
     "api/auth/session.js": {
       "maxDuration": 30
     },
+    "api/auth/login.js": {
+      "maxDuration": 30
+    },
     "api/auth/discord.js": {
       "maxDuration": 30
     },
@@ -24,6 +27,15 @@
       "maxDuration": 30
     },
     "api/auth/logout.js": {
+      "maxDuration": 30
+    },
+    "api/admin/users.js": {
+      "maxDuration": 30
+    },
+    "api/admin/users/[id].js": {
+      "maxDuration": 30
+    },
+    "api/admin/users/[id]/password.js": {
       "maxDuration": 30
     }
   },

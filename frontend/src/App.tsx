@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity, Ambulance, Bed, Bell, Check, ChevronDown, ChevronRight, ClipboardList,
-  Clock3, FileText, HeartPulse, Hospital, LayoutDashboard, LogOut, Menu, MessageCircle,
+  Clock3, Eye, EyeOff, FileText, HeartPulse, Hospital, LayoutDashboard, LogOut, Menu, MessageCircle,
   Plus, Radio, Search, Settings, Shield, Siren, Users, X
 } from "lucide-react";
-import { api, loginUrl } from "./services/api";
+import { api } from "./services/api";
 import { demoList, demoRemove, demoReset, demoSave, demoSessionKey, demoStats, demoUser } from "./services/demo";
 import type { DashboardStats, RecordItem, Resource, User } from "./types";
 
@@ -87,9 +87,11 @@ const fields: Partial<Record<Resource, { key: string; label: string; type?: stri
     { key: "crew", label: "Besatzung (Komma-getrennt)" }, { key: "fuel", label: "Tank %", type: "number" }, { key: "mileage", label: "Kilometerstand", type: "number" }
   ],
   users: [
-    { key: "displayName", label: "Name", required: true }, { key: "serviceNumber", label: "Dienstnummer" },
+    { key: "displayName", label: "Name", required: true }, { key: "serviceNumber", label: "Dienstnummer", required: true },
     { key: "role", label: "Rolle", type: "select", options: ["Admin", "Moderator", "Rettungsdienst", "Krankenhaus", "Feuerwehr", "Benutzer"] },
-    { key: "department", label: "Abteilung" }, { key: "dutyStatus", label: "Dienststatus", type: "select", options: ["Dienst", "Pause", "Außer Dienst"] }
+    { key: "department", label: "Abteilung" }, { key: "dutyStatus", label: "Dienststatus", type: "select", options: ["Dienst", "Pause", "Außer Dienst"] },
+    { key: "active", label: "Konto", type: "select", options: ["Aktiv", "Deaktiviert"] },
+    { key: "password", label: "Passwort (bei Bearbeitung optional)", type: "password" }
   ],
   radio_channels: [
     { key: "name", label: "Kanalname", required: true }, { key: "description", label: "Beschreibung" },
@@ -125,6 +127,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [demo, setDemo] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [authError, setAuthError] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
@@ -166,6 +169,20 @@ function App() {
     }
     navigate("/dashboard");
   };
+  const signIn = async (serviceNumber: string, password: string) => {
+    setLoginSubmitting(true);
+    setAuthError("");
+    try {
+      const result = await api.login(serviceNumber, password);
+      setUser(result.user);
+      setDemo(false);
+      navigate("/dashboard");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Anmeldung fehlgeschlagen.");
+    } finally {
+      setLoginSubmitting(false);
+    }
+  };
   const signOut = async () => {
     if (demo) {
       try { sessionStorage.removeItem(demoSessionKey); }
@@ -179,7 +196,7 @@ function App() {
   };
 
   if (authLoading) return <div className="boot"><div className="spinner" /> MEDCNET wird geladen</div>;
-  if (!user) return <Login error={authError} onDemo={enterDemo} />;
+  if (!user) return <Login error={authError} loading={loginSubmitting} onLogin={signIn} onDemo={enterDemo} />;
 
   const visiblePages = pages.filter((item) => !item.resource || !allowedResourceRoles[item.resource] || allowedResourceRoles[item.resource]?.includes(user.role));
   return (
@@ -215,9 +232,22 @@ function App() {
   );
 }
 
-function Login({ error, onDemo }: { error: string; onDemo: () => void }) {
+function Login({ error, loading, onLogin, onDemo }: { error: string; loading: boolean; onLogin: (serviceNumber: string, password: string) => void; onDemo: () => void }) {
+  const [serviceNumber, setServiceNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    onLogin(serviceNumber, password);
+  }
+
   return <main className="login"><section className="login-brand"><div className="brand"><span className="brand-mark"><HeartPulse size={22} /></span><span>MEDC<span>NET</span></span></div><div className="login-intro"><span className="eyebrow"><span className="state-dot" /> INTEGRIERTE LEITSTELLE</span><h1>Im Einsatz.<br /><em>Gemeinsam.</em></h1><p>Die zentrale Plattform für Rettungsdienst, Krankenhaus und Einsatzkoordination.</p><div className="login-signature">LAGE · PATIENTEN · RESSOURCEN</div></div></section>
-    <section className="login-panel"><div className="login-card"><div className="login-shield"><Shield size={22} /></div><h2>Anmelden</h2><p>Nutze dein autorisiertes Discord-Konto.</p>{error && <div className="error-box">{error}</div>}<a className="button-primary button-wide" href={loginUrl}><MessageCircle size={17} /> Mit Discord anmelden <ChevronRight size={17} /></a><div className="divider"><span>ODER</span></div><button className="button-secondary button-wide" onClick={onDemo}><Activity size={17} /> Isolierten Demo-Modus starten</button><small className="login-footnote">Die Demo verwendet ausschließlich fiktive Daten in einem separaten Browser-Speicher. Keine Verbindung zu Produktionsdaten.</small></div></section>
+    <section className="login-panel"><div className="login-card"><div className="login-shield"><Shield size={22} /></div><h2>Anmelden</h2><p>Melde dich mit deiner Dienstnummer an.</p>{error && <div className="error-box" role="alert">{error}</div>}<form className="login-form" onSubmit={submit}>
+      <label>Dienstnummer<input autoComplete="username" autoCapitalize="characters" required maxLength={40} value={serviceNumber} onChange={(event) => setServiceNumber(event.target.value)} /></label>
+      <label>Passwort<span className="password-input"><input type={passwordVisible ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" className="password-toggle" aria-label={passwordVisible ? "Passwort verbergen" : "Passwort anzeigen"} aria-pressed={passwordVisible} onClick={() => setPasswordVisible((visible) => !visible)}>{passwordVisible ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+      <button className="button-primary button-wide" type="submit" disabled={loading}>{loading ? "Anmeldung läuft …" : "Anmelden"}<ChevronRight size={17} /></button>
+    </form><div className="divider"><span>ODER</span></div><button className="button-secondary button-wide" onClick={onDemo}><Activity size={17} /> Isolierten Demo-Modus starten</button><small className="login-footnote">Die Demo verwendet ausschließlich fiktive Daten in einem separaten Browser-Speicher. Keine Verbindung zu Produktionsdaten.</small></div></section>
   </main>;
 }
 
@@ -300,6 +330,15 @@ function Workspace({ page, user, demo, onUserNameChange }: { page: Page; user: U
         if (page.resource === "invoices" && !saved.invoiceNumber) {
           demoSave("invoices", { invoiceNumber: `DEMO-${Date.now()}` }, saved._id);
         }
+      } else if (page.resource === "users") {
+        const userValues = { ...values };
+        if (typeof userValues.active === "string") userValues.active = userValues.active === "Aktiv";
+        if (id) {
+          const password = typeof userValues.password === "string" ? userValues.password : "";
+          delete userValues.password;
+          if (password) await api.resetUserPassword(id, password);
+          await api.updateUser(id, userValues);
+        } else await api.createUser(userValues);
       } else if (id) await api.update(page.resource, id, values);
       else await api.create(page.resource, values);
       setModal(false);
@@ -483,11 +522,11 @@ function Profile({ user, demo, onNameChange }: { user: User; demo: boolean; onNa
       window.setTimeout(() => setSaved(""), 2500);
     } catch (err) { setError(err instanceof Error ? err.message : "Profil konnte nicht gespeichert werden."); }
   }
-  return <section className="profile-grid"><div className="panel profile-hero"><div className="profile-avatar">{String(profile.displayName || user.name).slice(0, 1)}</div><h2>{display(profile.displayName || user.name)}</h2><Status value={display(profile.role || user.role)} /><p>{demo ? "Fiktives Demo-Profil" : `Discord-ID ${display(profile.discordId || user.discordId)}`}</p></div><form className="panel profile-details" onSubmit={update}><h2>Kontodetails</h2><label className="profile-field">Name<input value={display(profile.displayName)} onChange={(event) => setProfile((current) => ({ ...current, displayName: event.target.value }))} /></label><label className="profile-field">Abteilung<input value={display(profile.department)} onChange={(event) => setProfile((current) => ({ ...current, department: event.target.value }))} /></label><label className="profile-field">Dienststatus<select value={display(profile.dutyStatus)} onChange={(event) => setProfile((current) => ({ ...current, dutyStatus: event.target.value }))}><option>Dienst</option><option>Pause</option><option>Außer Dienst</option></select></label><div className="detail-pair"><span>Rolle (nur Admin)</span><b>{display(profile.role || user.role)}</b></div><div className="detail-pair"><span>Dienstnummer</span><b>{display(profile.serviceNumber)}</b></div>{error && <div className="error-banner">{error}</div>}{saved && <p className="saved-note">{saved}</p>}<button className="button-primary" type="submit"><Check size={15} /> Profil speichern</button></form></section>;
+  return <section className="profile-grid"><div className="panel profile-hero"><div className="profile-avatar">{String(profile.displayName || user.name).slice(0, 1)}</div><h2>{display(profile.displayName || user.name)}</h2><Status value={display(profile.role || user.role)} /><p>{demo ? "Fiktives Demo-Profil" : `Dienstnummer ${display(profile.serviceNumber || user.serviceNumber)}`}</p></div><form className="panel profile-details" onSubmit={update}><h2>Kontodetails</h2><label className="profile-field">Name<input value={display(profile.displayName)} onChange={(event) => setProfile((current) => ({ ...current, displayName: event.target.value }))} /></label><label className="profile-field">Abteilung<input value={display(profile.department)} onChange={(event) => setProfile((current) => ({ ...current, department: event.target.value }))} /></label><label className="profile-field">Dienststatus<select value={display(profile.dutyStatus)} onChange={(event) => setProfile((current) => ({ ...current, dutyStatus: event.target.value }))}><option>Dienst</option><option>Pause</option><option>Außer Dienst</option></select></label><div className="detail-pair"><span>Rolle (nur Admin)</span><b>{display(profile.role || user.role)}</b></div><div className="detail-pair"><span>Dienstnummer</span><b>{display(profile.serviceNumber)}</b></div>{error && <div className="error-banner">{error}</div>}{saved && <p className="saved-note">{saved}</p>}<button className="button-primary" type="submit"><Check size={15} /> Profil speichern</button></form></section>;
 }
 
 function SettingsPage({ demo }: { demo: boolean }) {
-  return <section className="panel settings-page"><div className="panel-head"><div><h2><Settings size={17} /> Systemkonfiguration</h2><p>Verbindungsstatus und Deployment-Informationen</p></div></div><div className="detail-pair"><span>Speichermodus</span><b>{demo ? "Getrennter lokaler Demo-Speicher" : "MongoDB Atlas über MEDCNET API"}</b></div><div className="detail-pair"><span>Authentifizierung</span><b>{demo ? "Nur lokale Demo-Sitzung" : "Discord OAuth2 · signierte HttpOnly-JWT-Session"}</b></div><div className="detail-pair"><span>Live-Funk</span><b>{demo ? "Lokale Demo-Nachrichten" : "REST-Aktualisierung über serverlose API"}</b></div><div className="detail-pair"><span>Deployment</span><b>{demo ? "Nicht mit Produktivdaten verbunden" : "Vercel Functions · MongoDB Atlas"}</b></div></section>;
+  return <section className="panel settings-page"><div className="panel-head"><div><h2><Settings size={17} /> Systemkonfiguration</h2><p>Verbindungsstatus und Deployment-Informationen</p></div></div><div className="detail-pair"><span>Speichermodus</span><b>{demo ? "Getrennter lokaler Demo-Speicher" : "MongoDB Atlas über MEDCNET API"}</b></div><div className="detail-pair"><span>Authentifizierung</span><b>{demo ? "Nur lokale Demo-Sitzung" : "Dienstnummer · bcrypt · HttpOnly-JWT-Session"}</b></div><div className="detail-pair"><span>Live-Funk</span><b>{demo ? "Lokale Demo-Nachrichten" : "REST-Aktualisierung über serverlose API"}</b></div><div className="detail-pair"><span>Deployment</span><b>{demo ? "Nicht mit Produktivdaten verbunden" : "Vercel Functions · MongoDB Atlas"}</b></div></section>;
 }
 
 function RecordModal({ resource, initial, demo, onClose, onSave }: { resource: Resource; initial?: RecordItem; demo: boolean; onClose: () => void; onSave: (values: Record<string, unknown>) => void }) {
@@ -499,6 +538,7 @@ function RecordModal({ resource, initial, demo, onClose, onSave }: { resource: R
     }
     if (resource === "price_catalog" && field.key === "amountEur" && typeof initial?.amountCents === "number") value = initial.amountCents / 100;
     if (resource === "price_catalog" && field.key === "active" && typeof value === "boolean") value = value ? "Ja" : "Nein";
+    if (resource === "users" && field.key === "active" && typeof value === "boolean") value = value ? "Aktiv" : "Deaktiviert";
     return [field.key, Array.isArray(value) ? value.join(", ") : value == null ? "" : String(value)];
   })));
   const [prices, setPrices] = useState<RecordItem[]>([]);

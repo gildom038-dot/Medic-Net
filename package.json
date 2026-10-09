@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "npm run dev --workspace frontend",
     "server": "npm start --workspace backend",
+    "bootstrap:admin": "npm run bootstrap-admin --workspace backend",
     "dev:all": "concurrently -k \"npm:server\" \"npm:dev\"",
     "build": "npm run build --workspace frontend",
     "start": "npm start --workspace backend",

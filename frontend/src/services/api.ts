@@ -46,11 +46,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  login: (serviceNumber: string, password: string) => request<{ user: User }>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ serviceNumber, password })
+  }),
   session: () => request<{ user: User | null }>("/auth/session"),
   dashboard: () => request<{ recentCalls: RecordItem[]; criticalPatients: RecordItem[]; activity: RecordItem[]; notifications: RecordItem[] }>("/dashboard"),
   profile: () => request<{ profile: RecordItem }>("/profile"),
   updateProfile: (values: Record<string, unknown>) => request<{ profile: RecordItem }>("/profile", { method: "PATCH", body: JSON.stringify(values) }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+  createUser: (values: Record<string, unknown>) => request<{ user: RecordItem }>("/admin/users", { method: "POST", body: JSON.stringify(values) }),
+  updateUser: (id: string, values: Record<string, unknown>) => request<{ user: RecordItem }>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(values) }),
+  resetUserPassword: (id: string, password: string) => request<void>(`/admin/users/${id}/password`, { method: "PATCH", body: JSON.stringify({ password }) }),
   list: async (resource: Resource) => (await request<{ data: RecordItem[] }>(`/${resource}`)).data,
   create: async (resource: Resource, values: Record<string, unknown>) =>
     (await request<{ data: RecordItem }>(`/${resource}`, { method: "POST", body: JSON.stringify(values) })).data,
@@ -59,5 +66,3 @@ export const api = {
   remove: (resource: Resource, id: string) => request<void>(`/${resource}/${id}`, { method: "DELETE" }),
   stats: () => request<DashboardStats>("/stats")
 };
-
-export const loginUrl = `${baseUrl}/auth/discord`;

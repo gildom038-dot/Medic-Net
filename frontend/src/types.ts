@@ -20,7 +20,8 @@ export type User = {
   sub: string;
   name: string;
   role: string;
-  discordId: string;
+  serviceNumber?: string;
+  discordId?: string;
 };
 
 export type DashboardStats = {
