@@ -1,0 +1,36 @@
+
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    },
+    "api/[...path].js": {
+      "maxDuration": 30
+    },
+    "api/auth/session.js": {
+      "maxDuration": 30
+    },
+    "api/auth/discord.js": {
+      "maxDuration": 30
+    },
+    "api/auth/callback.js": {
+      "maxDuration": 30
+    },
+    "api/auth/me.js": {
+      "maxDuration": 30
+    },
+    "api/auth/logout.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api(?:/|$)).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
