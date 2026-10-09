@@ -26,7 +26,7 @@ const writeRoles = {
 
 function validateResource(req, res, permission) {
   const resource = req.params.resource;
-  if (!models[resource]) {
+  if (!Object.hasOwn(models, resource)) {
     res.status(404).json({ error: "Unbekannter Datenbereich." });
     return false;
   }

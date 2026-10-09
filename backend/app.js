@@ -3,7 +3,6 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const { connectDatabase } = require("./config/database");
 const apiRoutes = require("./routes");
 
 const app = express();
@@ -32,29 +31,15 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: "256kb" }));
 app.use(cookieParser());
-app.use(async (req, res, next) => {
-  try {
-    const sessionWithoutCookie = req.path === "/api/auth/session" && !req.cookies?.medcnet_session;
-    if (!req.path.endsWith("/health") && !sessionWithoutCookie) {
-      const connected = await connectDatabase();
-      if (!connected && req.path !== "/api/auth/discord" && !sessionWithoutCookie) {
-        return res.status(503).json({ error: "MongoDB Atlas ist nicht konfiguriert. Prüfe MONGODB_URI und MONGODB_DATABASE." });
-      }
-    }
-    next();
-  } catch (error) {
-    error.status = 503;
-    next(error);
-  }
-});
 app.use("/api", apiRoutes);
+app.use("/api", (_req, res) => res.status(404).json({ error: "API-Route nicht gefunden." }));
 app.use((err, _req, res, _next) => {
   if (err.name === "ValidationError") return res.status(400).json({ error: err.message });
   if (err.name === "CastError") return res.status(400).json({ error: "Ungültiger Wert." });
   if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Ungültiges JSON." });
   if (err.status === 503) return res.status(503).json({ error: "MongoDB Atlas ist derzeit nicht verfügbar." });
   if ([400, 413].includes(err.status)) return res.status(err.status).json({ error: err.status === 413 ? "Anfrage ist zu groß." : "Ungültige Anfrage." });
-  console.error("API request failed:", err.message);
+  console.error("API request failed:", err.name || "Error");
   res.status(500).json({ error: "Interner API-Fehler." });
 });
 

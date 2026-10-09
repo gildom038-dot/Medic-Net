@@ -8,12 +8,29 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options.headers }
   });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({})) as { error?: string };
-    throw new Error(payload.error || `Anfrage fehlgeschlagen (${response.status}).`);
-  }
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("json")) {
+    if (response.ok) {
+      throw new Error("Die API hat HTML statt JSON geliefert. Prüfe das Vercel-API-Routing und die Bereitstellung.");
+    }
+    throw new Error(`API-Fehler (${response.status}): Die Antwort war kein JSON.`);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("Die API hat ungültiges JSON zurückgegeben.");
+  }
+  if (!response.ok) {
+    const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+      ? payload.error
+      : `Anfrage fehlgeschlagen (${response.status}).`;
+    throw new Error(message);
+  }
+  return payload as T;
 }
 
 export const api = {

@@ -134,6 +134,8 @@ function App() {
     const error = new URLSearchParams(location.search).get("authError");
     if (error === "blocked") setAuthError("Dieses Konto wurde gesperrt.");
     else if (error === "oauthConfig") setAuthError("Discord OAuth ist nicht vollständig eingerichtet. Bitte prüfe die serverseitigen Umgebungsvariablen.");
+    else if (error === "databaseConfig") setAuthError("MongoDB Atlas ist nicht konfiguriert. Bitte prüfe MONGODB_URI und MONGODB_DATABASE in Vercel.");
+    else if (error === "databaseUnavailable") setAuthError("MongoDB Atlas ist momentan nicht erreichbar. Bitte versuche es später erneut.");
     else if (error === "sessionConfig") setAuthError("JWT_SECRET fehlt oder ist noch ein Platzhalter. Erzeuge einen neuen zufälligen Secret-Wert.");
     else if (error) setAuthError("Discord-Anmeldung fehlgeschlagen. Prüfe die OAuth-Konfiguration.");
     try {

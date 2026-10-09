@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const { models } = require("../models");
 const auth = require("../controllers/auth");
 const resources = require("../controllers/resources");
 const asyncRoute = require("../middleware/asyncRoute");
@@ -11,6 +12,10 @@ const resource = (name) => (req, _res, next) => {
   req.params.resource = name;
   next();
 };
+router.param("resource", (req, res, next, name) => {
+  if (!Object.hasOwn(models, name)) return res.status(404).json({ error: "Unbekannter Datenbereich." });
+  next();
+});
 
 router.get("/health", asyncRoute(async (_req, res) => {
   try {
@@ -18,7 +23,7 @@ router.get("/health", asyncRoute(async (_req, res) => {
     if (!connected) return res.status(503).json({ status: "degraded", service: "medcnet-api", databaseConnected: false });
     return res.json({ status: "ok", service: "medcnet-api", databaseConnected: mongoose.connection.readyState === 1 });
   } catch (error) {
-    console.error("Health check database connection failed:", error.message);
+    console.error("Health check database connection failed:", error.name || "Error");
     return res.status(503).json({ status: "degraded", service: "medcnet-api", databaseConnected: false });
   }
 }));
@@ -26,7 +31,7 @@ router.get("/auth/session", asyncRoute(auth.session));
 router.get("/auth/discord", asyncRoute(auth.startDiscord));
 router.get("/auth/callback", asyncRoute(auth.finishDiscord));
 router.get("/auth/me", authenticate, auth.currentUser);
-router.post("/auth/logout", authenticate, auth.logout);
+router.post("/auth/logout", auth.logout);
 router.get("/profile", authenticate, asyncRoute(resources.getProfile));
 router.patch("/profile", authenticate, asyncRoute(resources.updateProfile));
 router.get("/dashboard", authenticate, asyncRoute(resources.dashboard));
