@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const vercel = require("../vercel.json");
 
 test("Vercel SPA fallback excludes API paths but accepts frontend routes", () => {
@@ -18,10 +20,7 @@ test("Vercel SPA fallback excludes API paths but accepts frontend routes", () =>
 test("Vercel uses npm, the Vite output directory, and both API handlers", () => {
   assert.equal(vercel.installCommand, "npm ci");
   assert.equal(vercel.outputDirectory, "frontend/dist");
-  assert.ok(vercel.functions["api/index.js"]);
-  assert.ok(vercel.functions["api/[...path].js"]);
-  assert.ok(vercel.functions["api/[resource]/[...path].js"]);
-  for (const route of ["session", "discord", "callback", "me", "logout"]) {
-    assert.ok(vercel.functions[`api/auth/${route}.js`]);
+  for (const functionPath of Object.keys(vercel.functions)) {
+    assert.equal(fs.existsSync(path.resolve(__dirname, "..", functionPath)), true, `${functionPath} must exist`);
   }
 });

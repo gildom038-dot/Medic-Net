@@ -11,9 +11,6 @@
     "api/[...path].js": {
       "maxDuration": 30
     },
-    "api/[resource]/[...path].js": {
-      "maxDuration": 30
-    },
     "api/auth/session.js": {
       "maxDuration": 30
     },

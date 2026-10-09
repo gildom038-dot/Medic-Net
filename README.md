@@ -132,7 +132,7 @@ Vor dem Commit sicherstellen, dass keine `.env`-Datei oder Secrets hinzugefügt 
 7. Deploy starten. Bei jedem Push auf den verbundenen Git-Branch erstellt Vercel automatisch ein neues Deployment.
 8. Danach `/api/health`, Discord-Anmeldung und einen direkten Seitenaufruf wie `/dispatch` testen.
 
-`api/index.js` bedient `/api`; `api/auth/*.js` ordnet die OAuth- und Session-Endpunkte explizit zu. `api/[...path].js` und `api/[resource]/[...path].js` leiten ein- und mehrstufige API-Pfade an denselben Express-Handler weiter. Die SPA-Rewrite-Regel schließt `/api` und alle `/api/...`-Pfade aus; direkte sowie unbekannte React-Routen werden auf die Vite-`index.html` zurückgeführt. Für API- und Frontend-Aufrufe wird dieselbe Vercel-Origin verwendet.
+`api/index.js` bedient `/api`; `api/auth/*.js` ordnet die OAuth- und Session-Endpunkte explizit zu. `api/[...path].js` leitet weitere API-Pfade an denselben Express-Handler weiter. Die SPA-Rewrite-Regel schließt `/api` und alle `/api/...`-Pfade aus; direkte sowie unbekannte React-Routen werden auf die Vite-`index.html` zurückgeführt. Für API- und Frontend-Aufrufe wird dieselbe Vercel-Origin verwendet.
 
 ### Vercel Environment Variables
 
