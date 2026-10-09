@@ -1,0 +1,55 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MEDCNET</title>
+<style>
+:root{--bg:#0d0b0c;--card:#1a1415;--line:#3a2326;--red:#d4202f;--tx:#f1e9ea;--mu:#9d8a8d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px system-ui,sans-serif}
+button,input,select{font:inherit;color:var(--tx);background:#241a1c;border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+button{cursor:pointer;background:var(--red);border:0;font-weight:600}button.g{background:#2d2123}button.s{padding:4px 8px;font-size:13px}
+#login{max-width:340px;margin:12vh auto;padding:24px;background:var(--card);border:1px solid var(--line);border-radius:10px;display:grid;gap:10px}
+h1{margin:0;color:var(--red);letter-spacing:2px}#app{display:none;min-height:100vh}
+nav{width:200px;background:var(--card);border-right:1px solid var(--line);padding:16px;position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column;gap:6px}
+nav a{padding:9px 10px;border-radius:6px;cursor:pointer;color:var(--mu)}nav a.on,nav a:hover{background:#2d1a1d;color:var(--tx)}
+main{margin-left:200px;padding:22px}.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.k{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 18px;min-width:130px}.k b{display:block;font-size:26px;color:var(--red)}
+table{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}th{color:var(--mu);font-size:12px;text-transform:uppercase}
+.err{color:#ff6b78}.wrap{overflow-x:auto}@media(max-width:700px){nav{position:static;width:auto;flex-direction:row;flex-wrap:wrap}main{margin:0}}
+</style></head><body>
+<div id="login"><h1>MEDCNET</h1><input id="dn" placeholder="Dienstnummer"><input id="pw" type="password" placeholder="Passwort"><button onclick="login()">Anmelden</button><button class="g" onclick="location='/api/auth/discord'">Mit Discord anmelden</button><div id="le" class="err"></div></div>
+<div id="app"><nav><h1>MEDCNET</h1><div id="menu"></div><div style="margin-top:auto;color:var(--mu)" id="who"></div><button class="g" onclick="logout()">Abmelden</button></nav><main id="main"></main></div>
+<script>
+const $=s=>document.querySelector(s);let T=localStorage.mt||'',U=null,cur='dash';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(p,m='GET',b){const r=await fetch('/api/'+p,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+T},body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j}
+const SV=['verfügbar','im Einsatz','außer Dienst','Werkstatt'],SI=['offen','zugewiesen','in Bearbeitung','abgeschlossen'],RO=['rettungsdienst','leitstelle','klinik','admin'];
+const MODS={
+ dash:{n:'Übersicht'},
+ vehicles:{n:'Fahrzeuge',api:'vehicles',w:['admin','leitstelle'],cols:[['kennung','Kennung'],['standort','Standort'],['tank','Tank %'],['funkkanal','Funkkanal'],['funkstatus','Funk'],['besatzung','Besatzung'],['status','Status',SV]],
+  form:[['kennung','Kennung'],['standort','Standort'],['funkkanal','Funkkanal (z. B. #rtw-1)'],['besatzung','Besatzung (Komma-getrennt)'],['tank','Tank %']]},
+ incidents:{n:'Einsätze',api:'incidents',w:['admin','leitstelle','rettungsdienst'],cols:[['einsatznummer','Nr.'],['stichwort','Stichwort'],['adresse','Adresse'],['fahrzeuge','Fahrzeuge'],['status','Status',SI]],
+  form:[['stichwort','Stichwort'],['adresse','Adresse'],['beschreibung','Beschreibung'],['fahrzeuge','Fahrzeuge (Kennungen, Komma)']]},
+ users:{n:'Benutzer',api:'users',w:['admin'],r:['admin'],cols:[['dienstnummer','Dienstnr.'],['name','Name'],['role','Rolle',RO],['discordId','Discord-ID'],['gesperrt','Gesperrt']],
+  form:[['dienstnummer','Dienstnummer'],['name','Name'],['password','Passwort (min. 8)'],['role','Rolle: '+RO.join('/')],['discordId','Discord-ID (optional)']]},
+ logs:{n:'Protokolle',api:'logs',r:['admin'],cols:[['zeit','Zeit'],['dienstnummer','Dienstnr.'],['aktion','Aktion'],['detail','Detail']],ro:1}
+};
+async function login(){try{const j=await api('auth/login','POST',{dienstnummer:$('#dn').value,password:$('#pw').value});T=j.token;localStorage.mt=T;start()}catch(e){$('#le').textContent=e.message}}
+async function logout(){try{await api('auth/me','POST')}catch{}localStorage.removeItem('mt');location='/'}
+async function start(){try{U=(await api('auth/me')).user}catch{localStorage.removeItem('mt');return}
+ $('#login').style.display='none';$('#app').style.display='block';$('#who').textContent=U.name+' · '+U.role;
+ $('#menu').innerHTML=Object.entries(MODS).filter(([k,m])=>!m.r||m.r.includes(U.role)).map(([k,m])=>`<a data-k="${k}" onclick="go('${k}')">${m.n}</a>`).join('');go(cur)}
+async function go(k){cur=k;document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.k==k));const m=MODS[k];
+ try{if(k=='dash'){const[v,i]=await Promise.all([api('vehicles'),api('incidents')]);
+  $('#main').innerHTML=`<h2>Live-Übersicht</h2><div class="row"><div class="k"><b>${i.filter(x=>x.status!='abgeschlossen').length}</b>Offene Einsätze</div><div class="k"><b>${v.filter(x=>x.status=='verfügbar').length}</b>Fahrzeuge verfügbar</div><div class="k"><b>${v.filter(x=>x.status=='im Einsatz').length}</b>Im Einsatz</div><div class="k"><b>${v.filter(x=>x.status=='Werkstatt').length}</b>Werkstatt</div></div>`+tbl(MODS.incidents,i.filter(x=>x.status!='abgeschlossen'),1);return}
+  const rows=await api(m.api);window.D=rows;draw(m,rows)}catch(e){$('#main').innerHTML='<p class="err">'+esc(e.message)+'</p>'}}
+function tbl(m,rows,ro){const w=!ro&&!m.ro&&(m.w||[]).includes(U.role);return `<div class="wrap"><table><tr>${m.cols.map(c=>`<th>${c[1]}</th>`).join('')}${w?'<th></th>':''}</tr>`+rows.map(r=>`<tr>${m.cols.map(c=>{let v=r[c[0]];
+  if(c[2]&&w)return `<td><select onchange="upd('${r._id}','${c[0]}',this.value)">${c[2].map(o=>`<option ${o==v?'selected':''}>${o}</option>`).join('')}</select></td>`;
+  if(c[0]=='gesperrt'&&w)return `<td><button class="s g" onclick="upd('${r._id}','gesperrt',${!v})">${v?'entsperren':'sperren'}</button></td>`;
+  if(Array.isArray(v))v=v.join(', ');return `<td>${esc(v)}</td>`}).join('')}${w?`<td><button class="s g" onclick="del('${r._id}')">Löschen</button></td>`:''}</tr>`).join('')+'</table></div>'}
+function draw(m,rows){const w=(m.w||[]).includes(U.role);let f='';
+ if(w)f=`<div class="row">${m.form.map(x=>`<input data-f="${x[0]}" placeholder="${x[1]}">`).join('')}<button onclick="add()">Anlegen</button></div>`;
+ $('#main').innerHTML=`<h2>${m.n}</h2>${f}<div class="row"><input id="q" placeholder="Suchen…" oninput="draw(MODS[cur],D.filter(r=>JSON.stringify(r).toLowerCase().includes(this.value.toLowerCase())))"></div><div id="t">${tbl(m,rows)}</div><p id="e" class="err"></p>`}
+async function add(){const b={};document.querySelectorAll('[data-f]').forEach(i=>b[i.dataset.f]=i.value);try{await api(MODS[cur].api,'POST',b);go(cur)}catch(e){$('#e').textContent=e.message}}
+async function upd(id,k,v){try{await api(MODS[cur].api+'?id='+id,'PUT',{[k]:v});go(cur)}catch(e){alert(e.message)}}
+async function del(id){if(confirm('Wirklich löschen?'))try{await api(MODS[cur].api+'?id='+id,'DELETE');go(cur)}catch(e){alert(e.message)}}
+const p=new URLSearchParams(location.search);if(p.get('token')){T=p.get('token');localStorage.mt=T;history.replaceState({},'','/')}
+if(p.get('error'))$('#le').textContent=p.get('error')=='kein_konto'?'Kein Konto mit dieser Discord-ID verknüpft.':'Discord-Anmeldung fehlgeschlagen.';
+if(T)start();
+</script></body></html>
